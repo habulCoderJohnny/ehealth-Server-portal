@@ -19,15 +19,23 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
           await client.connect();
           //console.log('db connected!!');
           const serviceCollection = client.db("doctors_portal").collection("services");
+          const bookingCollection = client.db("doctors_portal").collection("bookings");
 
           //GET DATA myOWN Inserted DATA
-          app.get('/service', async(req,res)=>{
+          app.get('/service', async(req,res) =>{
               const query = {};
               const cursor = serviceCollection.find(query);
               const services = await cursor.toArray();
               res.send(services);
-          })
-          
+          });
+
+          //ADD BOOKING from client side| (client data ADD korte hole data ke read korte hobe data thake body er moddhe)
+          app.post('/booking', async (req,res)=>{
+              const booking = req.body;
+              const result = await bookingCollection.insertOne(booking);
+              res.send(result);
+          }) //then working on client-side fetch:booking modal>line:29
+
       }
       finally{
 
@@ -45,3 +53,12 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Doctor app listening on port ${port}`)
 })
+
+/* API Naming Convention
+* app.get('/booking') // GET ALL BOOKINGs in this collection. 
+* or get more than one or by filter
+* app.get('/booking/:id') // get a specific booking 
+* app.post('/booking') // add a new booking
+* app.patch('/booking/:id) //
+* app.delete('/booking/:id) // 
+*/
