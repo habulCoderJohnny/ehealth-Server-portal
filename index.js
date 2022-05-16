@@ -32,8 +32,15 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
           //ADD BOOKING from client side| (client data ADD korte hole data ke read korte hobe data thake body er moddhe)
           app.post('/booking', async (req,res)=>{
               const booking = req.body;
+            //Limit one booking per user per treatment/service per day 
+            //(duplicate restricted)
+              const query = {treatment: booking.treatment, date: booking.date, patientMail: booking.patientMail}
+              const existService = await bookingCollection.findOne(query);
+              if (existService) {
+                 return res.send({success:false, booking:existService});
+              } 
               const result = await bookingCollection.insertOne(booking);
-              res.send(result);
+              return res.send({success: true,  result});
           }) //then working on client-side fetch:booking modal>line:29
 
       }
