@@ -68,8 +68,14 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
               return res.send({success: true,  result});
           }) //then working on client-side fetch:booking modal>line:29
 
-         
-
+          //Particular user booking data/info SENT to client FOR Displaying Dashboard using patientMail
+          app.get('/booking', async (req,res)=>{
+              const patientMail  = req.query.patientMail;
+              const query = {patientMail:patientMail};
+              const bookings =  await bookingCollection.find(query).toArray();
+              res.send(bookings);
+          })
+        
       } 
       finally{
 
