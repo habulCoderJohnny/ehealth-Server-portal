@@ -20,6 +20,7 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
           //console.log('db connected!!');
           const serviceCollection = client.db("doctors_portal").collection("services");
           const bookingCollection = client.db("doctors_portal").collection("bookings");
+          const userCollection = client.db("doctors_portal").collection("users");
 
           //GET DATA myOWN Inserted DATA
           app.get('/service', async(req,res) =>{
@@ -75,6 +76,19 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
               const bookings =  await bookingCollection.find(query).toArray();
               res.send(bookings);
           })
+          //Save Registered user information in the database
+          app.put('/user/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = req.body;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+              $set: user,
+            };
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+          });
+      
         
       } 
       finally{
@@ -100,5 +114,6 @@ app.listen(port, () => {
 * app.get('/booking/:id') // get a specific booking 
 * app.post('/booking') // add a new booking
 * app.patch('/booking/:id) //
+* app.put('/booking/:id') // upsert ==> update (if exists) or insert (if doesn't exist)
 * app.delete('/booking/:id) // 
 */
