@@ -29,11 +29,36 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
               res.send(services);
           });
 
+          //OPERATION: BOOKING date onojay Treatment service data load korbe
+          app.get('/available', async (req,res)=>{
+            const date = req.query.date;
+
+            // step 1:  get all services
+            const services = await serviceCollection.find().toArray();
+      
+            // step 2: get the booking of that day. output: [{}, {}, {}, {}, {}, {}]
+            const query = {date: date};
+            const thatDayBookings = await bookingCollection.find(query).toArray();
+      
+            // step 3: for each service
+            services.forEach(service=>{
+              // step 4: find bookings for that service. output: [{}, {}, {}, {}]
+              const serviceBookings = thatDayBookings.filter(book => book.treatment === service.name);
+              // step 5: select slots for the service Bookings: ['', '', '', '']
+              const bookedSlots = serviceBookings.map(book => book.slot);
+              // step 6: select those slots that are not in bookedSlots
+              const available = service.slots.filter(slot => !bookedSlots.includes(slot));
+              //step 7: set available to slots to make it easier 
+              service.slots = available;
+            });
+            res.send(services);
+           })
+
           //ADD BOOKING from client side| (client data ADD korte hole data ke read korte hobe data thake body er moddhe)
           app.post('/booking', async (req,res)=>{
               const booking = req.body;
-            //Limit one booking per user per treatment/service per day 
-            //(duplicate restricted)
+             //Limit one booking per user per treatment/service per day 
+             //(duplicate restricted)
               const query = {treatment: booking.treatment, date: booking.date, patientMail: booking.patientMail}
               const existService = await bookingCollection.findOne(query);
               if (existService) {
@@ -43,7 +68,9 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
               return res.send({success: true,  result});
           }) //then working on client-side fetch:booking modal>line:29
 
-      }
+         
+
+      } 
       finally{
 
       }
