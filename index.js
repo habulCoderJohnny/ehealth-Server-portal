@@ -1,6 +1,7 @@
 const express = require('express')
 const app = express()
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId} = require('mongodb');
@@ -13,6 +14,28 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.31y8m.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 //console.log(uri);
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
+//jwt-token-to-backend-for-Verification
+function verifyToken(req,res,next){
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        //console.log('ABC');
+     return res.status(401).send({message: 'UnAuthorized access! Kire tor token koi? Its not ur data!'});
+    }
+
+    //Iqnore Bearer
+    const token = authHeader.split(' ')[1];
+    // VERIFY user-token of 
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded){
+    if (err) {
+        return res.status(403).send({message: 'Forbidden! Access denied.'})
+    } //Decoded valid user representor
+    req.decoded = decoded;
+      console.log(decoded);
+      next();
+    });
+
+}
 
   async function run() {
       try{
@@ -69,12 +92,22 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
               return res.send({success: true,  result});
           }) //then working on client-side fetch:booking modal>line:29
 
-          //Particular user booking data/info SENT to client FOR Displaying Dashboard using patientMail
-          app.get('/booking', async (req,res)=>{
+          //Particular user booking data/info SENT to client FOR Displaying Dashboard using patientMail. Middleware:SecureData
+          app.get('/booking', verifyToken, async (req,res)=>{
               const patientMail  = req.query.patientMail;
+            //const authorization = req.headers.authorization;
+            //console.log('authorization:', authorization);
+            //operation: a user Try to data accesss of other user's valid token (resistance)
+              const decodedEmail = req.decoded.email;
+              if(patientMail===decodedEmail){ 
               const query = {patientMail:patientMail};
               const bookings =  await bookingCollection.find(query).toArray();
               res.send(bookings);
+            }
+            else{
+                return res.status(403).send({message:"forbidden, Its not your cup of Tea"})
+            }
+     
           })
           //Save Registered user information in the database
           app.put('/user/:email', async (req, res) => {
@@ -86,7 +119,8 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
               $set: user,
             };
             const result = await userCollection.updateOne(filter, updateDoc, options);
-            res.send(result);
+            const token = jwt.sign({email:email},process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1h'}) //Jwt token issue-1st then>Verify
+            res.send({result, token});
           });
       
         
