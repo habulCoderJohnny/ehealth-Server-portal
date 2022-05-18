@@ -16,7 +16,7 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 //jwt-token-to-backend-for-Verification
-function verifyToken(req,res,next){
+function verifiedToken(req,res,next){
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         //console.log('ABC');
@@ -31,7 +31,7 @@ function verifyToken(req,res,next){
         return res.status(403).send({message: 'Forbidden! Access denied.'})
     } //Decoded valid user representor
     req.decoded = decoded;
-      console.log(decoded);
+    //console.log(decoded);
       next();
     });
 
@@ -93,7 +93,7 @@ function verifyToken(req,res,next){
           }) //then working on client-side fetch:booking modal>line:29
 
           //Particular user booking data/info SENT to client FOR Displaying Dashboard using patientMail. Middleware:SecureData
-          app.get('/booking', verifyToken, async (req,res)=>{
+          app.get('/booking', verifiedToken, async (req,res)=>{
               const patientMail  = req.query.patientMail;
             //const authorization = req.headers.authorization;
             //console.log('authorization:', authorization);
@@ -122,11 +122,38 @@ function verifyToken(req,res,next){
             const token = jwt.sign({email:email},process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1h'}) //Jwt token issue-1st then>Verify
             res.send({result, token});
           });
-         //OUR ALL USER INFO API 
-          app.get('/users', verifyToken, async(req,res)=>{
+
+          //Without admin U cant entry users route
+          app.get('/admin/:email', async (req,res)=>{
+            const email = req.params.email;
+            const user = await userCollection.findOne({email:email});
+            const isAdmin = user.Role ==='Admin';
+            res.send({admin: isAdmin})
+          })
+
+
+          //Add ADMIN Only who IS already Admin
+          app.put('/user/admin/:email',verifiedToken, async (req, res) => {
+            const email = req.params.email;
+            const adminRequester = req.decoded.email;
+            const adminRequesterAccount = await userCollection.findOne({email: adminRequester});
+            if (adminRequesterAccount.Role ==='Admin') {
+                const filter = { email: email };
+                const updateDoc = {
+                  $set:{ Role:'Admin'},
+                };
+                const result = await userCollection.updateOne(filter, updateDoc);
+                res.send(result);
+            }
+            else{
+                res.status(403).send({message:"forbidden, Age Admin hoy"});
+        }
+          });
+
+        //OUR ALL USER INFO API 
+          app.get('/users', verifiedToken, async(req,res)=>{
               const users = await userCollection.find().toArray();
               res.send(users);
-
           })
       } 
       finally{
