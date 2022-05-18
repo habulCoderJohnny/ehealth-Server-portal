@@ -122,8 +122,12 @@ function verifyToken(req,res,next){
             const token = jwt.sign({email:email},process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1h'}) //Jwt token issue-1st then>Verify
             res.send({result, token});
           });
-      
-        
+         //OUR ALL USER INFO API 
+          app.get('/users', verifyToken, async(req,res)=>{
+              const users = await userCollection.find().toArray();
+              res.send(users);
+
+          })
       } 
       finally{
 
