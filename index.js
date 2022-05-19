@@ -4,9 +4,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion, ObjectId} = require('mongodb');
+const { MongoClient, ServerApiVersion} = require('mongodb');
 
-//middleware
 app.use(cors());
 app.use(express.json());
 
@@ -15,6 +14,7 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 //console.log(uri);
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+//Middleware
 //jwt-token-to-backend-for-Verification
 function verifiedToken(req,res,next){
     const authHeader = req.headers.authorization;
@@ -46,6 +46,17 @@ function verifiedToken(req,res,next){
           const userCollection = client.db("doctors_portal").collection("users");
           const doctorCollection = client.db("doctors_portal").collection("doctors");
 
+          const verifiedAdmin = async(req,res,next)=>{
+            const adminRequester = req.decoded.email;
+            const adminRequesterAccount = await userCollection.findOne({email: adminRequester});
+            if (adminRequesterAccount.Role ==='Admin') {
+                next();
+            }
+            else{
+             res.status(403).send({message:"forbidden, Only admin can Access"});
+            }
+
+          }
           //GET DATA myOWN Inserted DATA
           app.get('/service', async(req,res) =>{
               const query = {};
@@ -94,7 +105,7 @@ function verifiedToken(req,res,next){
           }) //then working on client-side fetch:booking modal>line:29
 
           //Particular user booking data/info SENT to client FOR Displaying Dashboard using patientMail. Middleware:SecureData
-          app.get('/booking', verifiedToken, async (req,res)=>{
+          app.get('/booking', [verifiedToken], async (req,res)=>{
               const patientMail  = req.query.patientMail;
             //const authorization = req.headers.authorization;
             //console.log('authorization:', authorization);
@@ -134,35 +145,34 @@ function verifiedToken(req,res,next){
 
 
           //Add ADMIN Only who IS already Admin
-          app.put('/user/admin/:email',verifiedToken, async (req, res) => {
+          app.put('/user/admin/:email', [verifiedToken, verifiedAdmin], async (req, res) => {
             const email = req.params.email;
-            const adminRequester = req.decoded.email;
-            const adminRequesterAccount = await userCollection.findOne({email: adminRequester});
-            if (adminRequesterAccount.Role ==='Admin') {
-                const filter = { email: email };
-                const updateDoc = {
-                  $set:{ Role:'Admin'},
+            const filter = { email: email };
+            const updateDoc = {
+                $set:{ Role:'Admin'},
                 };
-                const result = await userCollection.updateOne(filter, updateDoc);
-                res.send(result);
-            }
-            else{
-                res.status(403).send({message:"forbidden, Age Admin hoy"});
-        }
+            const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result);
           });
 
         //OUR ALL USER INFO API 
           app.get('/users', verifiedToken, async(req,res)=>{
-              const users = await userCollection.find().toArray();
-              res.send(users);
+            const users = await userCollection.find().toArray();
+            res.send(users);
           })
 
-          //DOCTOR 
-          app.post('/doctor', verifiedToken, async (req, res) => {
+          //DOCTOR info Store
+          app.post('/doctor', [verifiedToken, verifiedAdmin], async (req, res) => {
             const doctor = req.body;
             const result = await doctorCollection.insertOne(doctor);
             res.send(result);
           });
+
+          //Doctor Stored data Load from DB
+          app.get('/doctor', [verifiedToken, verifiedAdmin], async(req, res)=>{
+            const doctors = await doctorCollection.find().toArray();
+            res.send(doctors);
+          })
       } 
       finally{
 
