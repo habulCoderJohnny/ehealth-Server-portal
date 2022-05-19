@@ -173,6 +173,13 @@ function verifiedToken(req,res,next){
             const doctors = await doctorCollection.find().toArray();
             res.send(doctors);
           })
+
+          app.delete('/doctor/:email', [verifiedToken, verifiedAdmin], async (req, res) => {
+            const email = req.params.email;
+            const filter = {email: email};
+            const result = await doctorCollection.deleteOne(filter);
+            res.send(result);
+           })
       } 
       finally{
 
