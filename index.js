@@ -44,11 +44,12 @@ function verifiedToken(req,res,next){
           const serviceCollection = client.db("doctors_portal").collection("services");
           const bookingCollection = client.db("doctors_portal").collection("bookings");
           const userCollection = client.db("doctors_portal").collection("users");
+          const doctorCollection = client.db("doctors_portal").collection("doctors");
 
           //GET DATA myOWN Inserted DATA
           app.get('/service', async(req,res) =>{
               const query = {};
-              const cursor = serviceCollection.find(query);
+              const cursor = serviceCollection.find(query).project({name:1});
               const services = await cursor.toArray();
               res.send(services);
           });
@@ -155,6 +156,13 @@ function verifiedToken(req,res,next){
               const users = await userCollection.find().toArray();
               res.send(users);
           })
+
+          //DOCTOR 
+          app.post('/doctor', verifiedToken, async (req, res) => {
+            const doctor = req.body;
+            const result = await doctorCollection.insertOne(doctor);
+            res.send(result);
+          });
       } 
       finally{
 
@@ -166,7 +174,7 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-  res.send('Hello World from doctors developing portal')
+  res.send('Hello World from doctors developing server')
 })
 
 app.listen(port, () => {
