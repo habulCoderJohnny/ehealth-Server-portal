@@ -4,7 +4,9 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion} = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId} = require('mongodb');
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
 
 app.use(cors());
 app.use(express.json());
@@ -45,6 +47,7 @@ function verifiedToken(req,res,next){
           const bookingCollection = client.db("doctors_portal").collection("bookings");
           const userCollection = client.db("doctors_portal").collection("users");
           const doctorCollection = client.db("doctors_portal").collection("doctors");
+          const paymentCollection = client.db("doctors_portal").collection("payments");
 
           const verifiedAdmin = async(req,res,next)=>{
             const adminRequester = req.decoded.email;
@@ -109,7 +112,7 @@ function verifiedToken(req,res,next){
               const patientMail  = req.query.patientMail;
             //const authorization = req.headers.authorization;
             //console.log('authorization:', authorization);
-            //operation: a user Try to data accesss of other user's valid token (resistance)
+            //operation: a user Try to data access of other user's valid token (resistance)
               const decodedEmail = req.decoded.email;
               if(patientMail===decodedEmail){ 
               const query = {patientMail:patientMail};
@@ -120,6 +123,14 @@ function verifiedToken(req,res,next){
                 return res.status(403).send({message:"forbidden, Its not your cup of Tea"})
             }
      
+          })
+
+          app.get('/booking/:id', async (req,res)=>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)};
+            const booking = await bookingCollection.findOne(query);
+            res.send(booking);
+
           })
           //Save Registered user information in the database
           app.put('/user/:email', async (req, res) => {
@@ -180,6 +191,34 @@ function verifiedToken(req,res,next){
             const result = await doctorCollection.deleteOne(filter);
             res.send(result);
            })
+
+          //PAYMENT METHOD
+          app.post('/create-payment-intent', verifiedToken, async (req,res)=>{
+            const { price } = req.body;
+            const amount = price*100;
+            const paymentIntent = await stripe.paymentIntents.create({
+              amount : amount,
+              currency: 'usd',
+              payment_method_types : ['card']
+            });
+            res.send({clientSecret: paymentIntent.client_secret})
+          });
+
+          //PAYMENT DATA RESERVED IN DATABASE
+          app.patch('/booking/:id', verifiedToken, async(req, res) =>{
+            const id  = req.params.id;
+            const payment = req.body;
+            const filter = {_id: ObjectId(id)};
+            const updatedDoc = {
+              $set: {
+                paid: true,
+                transactionId: payment.transactionId
+              }
+            }
+            const result = await paymentCollection.insertOne(payment);
+            const updatedBooking = await bookingCollection.updateOne(filter, updatedDoc);
+            res.send(updatedBooking);
+          });
       } 
       finally{
 
